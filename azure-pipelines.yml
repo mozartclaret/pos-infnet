@@ -1,0 +1,38 @@
+# Trigger
+trigger:
+  branches:
+    include:
+    - master
+
+# Pipeline
+pool:
+  vmImage: Ubuntu-20.04
+
+# Stage
+stages:
+- stage: DeployTerraform
+  displayName: Deploy Terraform
+  jobs:
+  - job: DeployTerraform
+    displayName: 'Deploy infrastructure with Terraform'
+
+# Steps
+    steps:
+    - task: Bash@3
+      displayName: "Terraform Install"
+      name: "terraform_install"
+      inputs:
+        targetType: inline
+        script: "echo \"# Downloading Terraform v1.3.7\"\nwget https://releases.hashicorp.com/terraform/1.3.7/terraform_1.3.8_linux_amd64.zip\necho \"# Unzipping files\"\nunzip terraform_1.3.8_linux_amd64.zip\n        \necho \"# Configuring terraform and checking version\"\nexport TERRAFORM_PATH=$(which terraform)\nls -lha\nsudo mv terraform $TERRAFORM_PATH\n\nterraform -v\n"
+    - task: AWSShellScript@1
+      displayName: 'Deploy Service'
+      inputs:
+        awsCredentials: aws-teste-dev
+        regionName: $(AWS_REGION)
+        scriptType: 'inline'
+        inlineScript: |
+          cd projects/pipelines 
+          terraform init -upgrade
+          terraform plan
+          terraform apply -auto-approve
+          terraform destroy -auto-approve
